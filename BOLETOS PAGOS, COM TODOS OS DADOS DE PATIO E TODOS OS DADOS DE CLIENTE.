@@ -1,0 +1,111 @@
+SELECT 
+EVENTO,
+LOTE,
+DATA_EVENTO,
+STATUS,
+DATA_PAGAMENTO,
+ARREMATE,
+VALOR_BRUTO,
+DESCONTO, 
+VALOR_BOLETO,
+PLACA,
+PLACA_AJUSTADA,
+CHASSIS,
+RENAVAM,
+VEICULO, 
+MARCA,
+CATEGORIA,
+COMITENTE,
+BANCO,
+PATIO,
+CEP_PATIO,
+ENDEREÇO_PATIO,
+NUM,
+COMP, 
+BAIRRO_PATIO,
+CIDADE_PATIO,
+ESTADO_PATIO,
+CLIENTE, 
+CPF, 
+RG, 
+CNPJ, 
+ENDEREÇO,
+NUMERO, 
+COMPLETEMENTO,
+BAIRRO,
+CIDADE, 
+ESTADO, 
+CEP, 
+EMAIL,
+TELEFONE_1,
+TELEFONE_2
+FROM (
+    SELECT 
+        E.name AS EVENTO, 
+        EV.ad_id AS LOTE,
+        E.event_end_date AS DATA_EVENTO,
+        EV.value_with_fees AS VALOR_BRUTO,
+        EV.value_finish AS ARREMATE, 
+        EV.discount AS DESCONTO, 
+		(EV.value_with_fees - COALESCE(EV.discount, 0)) AS VALOR_BOLETO,
+        EV.payment_checkout AS DATA_PAGAMENTO,
+        EV.status AS STATUS,
+        CL.name AS CLIENTE, 
+		CL.cpf AS CPF, 
+		CL.rg AS RG, 
+		CL.cnpj AS CNPJ, 
+		CL.public_place AS ENDEREÇO,
+		CL.number AS NUMERO, 
+		CL.complement AS COMPLETEMENTO,
+		CL.district AS BAIRRO,
+		CL.city AS CIDADE, 
+		CL.state AS ESTADO, 
+		CL.cep AS CEP, 
+		CL.email AS EMAIL,
+		CL.phone_1 AS TELEFONE_1,
+		CL.phone_2 AS TELEFONE_2,
+        V.car_plate AS PLACA,
+        REPLACE(V.car_plate, '-', '') AS PLACA_AJUSTADA,
+        V.chassis AS CHASSIS,
+        V.renavam AS RENAVAM,
+        V.name AS VEICULO, 
+        AUT.name AS MARCA,
+        CAT.name AS CATEGORIA,
+        C.name AS COMITENTE,
+        C.cod AS BANCO,
+        PAT.name AS PATIO,
+        PAT.cep  AS CEP_PATIO,
+        PAT.address AS ENDEREÇO_PATIO,
+        PAT.number AS NUM,
+        PAT.complement AS COMP, 
+        PAT.district AS BAIRRO_PATIO,
+		PAT.city AS CIDADE_PATIO,
+        PAT.state ESTADO_PATIO,
+        DENSE_RANK() OVER (PARTITION BY V.chassis ORDER BY EST.start_date_stay DESC) AS rank_num
+    FROM 
+        dealersclub.events_vehicles EV
+    LEFT JOIN 
+        dealersclub.vehicles V ON EV.vehicle_id = V.id
+    LEFT JOIN 
+        dealersclub.events E ON EV.event_id = E.id
+    LEFT JOIN 
+        dealersclub.principals C ON V.principal_id = C.id
+    LEFT JOIN 
+        dealersclub.type_vehicles CAT ON V.type_id = CAT.id
+    LEFT JOIN
+        dealersclub.automakers AUT ON V.automaker_id = AUT.id
+    LEFT JOIN 
+        dealersclub.clients CL ON EV.client_id = CL.id
+    LEFT JOIN
+        dealersclub.stays EST ON V.id = EST.vehicle_id
+    LEFT JOIN
+        dealersclub.courtyards PAT ON EST.courtyard_id = PAT.id
+    WHERE
+        EV.status = 'PAGO'
+        AND YEAR(E.event_end_date) = 2024
+       -- AND E.name LIKE '%Venda Direta%'
+) AS sub
+WHERE
+    rank_num = 1 OR rank_num IS NULL -- Adicionando condição para lidar com linhas sem correspondência
+ORDER BY 
+    DATA_EVENTO DESC;
